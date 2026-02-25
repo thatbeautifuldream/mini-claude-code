@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+
+# Environment — never commit real keys
+.env
+.env.local
+.env.*.local
+
+# TypeScript build output
+dist/
+build/
+*.js.map
+
+# Bun
+.bun/
+
+# macOS
+.DS_Store
+
+# Editor
+.vscode/
+.idea/
+*.swp
