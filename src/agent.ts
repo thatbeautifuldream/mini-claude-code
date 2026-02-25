@@ -1,7 +1,7 @@
 import { groq } from "@ai-sdk/groq";
 import { ToolLoopAgent, stepCountIs, type ToolSet } from "ai";
 import { createBashTool, type BashToolkit } from "bash-tool";
-import { DANGEROUS_COMMANDS, INSTRUCTIONS, MODEL_ID } from "./cst/constants.js";
+import { DANGEROUS_COMMANDS, INCLUDE_EXTENSIONS, INSTRUCTIONS, MAX_FILES_TO_UPLOAD, MODEL_ID } from "./cst/constants.js";
 import type {
   TAfterBashCallInput,
   TAfterBashCallOutput,
@@ -10,12 +10,17 @@ import type {
   TBeforeBashCallOutput,
 } from "./cst/types.js";
 
+function buildIncludePattern(): string {
+  const extPattern = `**/*.{${INCLUDE_EXTENSIONS.join(",")}}`;
+  return extPattern;
+}
+
 export async function createAgent(seedDir: string | null): Promise<TAgentKit> {
   const bashToolkit: BashToolkit = await createBashTool({
     destination: "/workspace",
     maxOutputLength: 50000,
-    maxFiles: 500,
-    uploadDirectory: seedDir ? { source: seedDir, include: "**/*" } : undefined,
+    maxFiles: MAX_FILES_TO_UPLOAD,
+    uploadDirectory: seedDir ? { source: seedDir, include: buildIncludePattern() } : undefined,
     extraInstructions: `\
 - Working directory is /workspace
 - All file operations are relative to /workspace

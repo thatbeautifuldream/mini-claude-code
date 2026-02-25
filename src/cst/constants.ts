@@ -1,5 +1,33 @@
 export const MODEL_ID = "openai/gpt-oss-120b";
 
+export const EXCLUDE_PATTERNS = [
+  "**/node_modules/**",
+  "**/.git/**",
+  "**/dist/**",
+  "**/build/**",
+  "**/.next/**",
+  "**/.vercel/**",
+  "**/.turbo/**",
+  "**/coverage/**",
+  "**/.cache/**",
+  "**/.vscode/**",
+  "**/.idea/**",
+] as const;
+
+export const INCLUDE_EXTENSIONS = [
+  "ts",
+  "js",
+  "tsx",
+  "jsx",
+  "json",
+  "md",
+  "yaml",
+  "yml",
+] as const;
+
+export const MAX_FILES_TO_UPLOAD = 100;
+export const MAX_FILE_SIZE_BYTES = 500_000;
+
 export const DANGEROUS_COMMANDS = [
   "rm -rf /",
   "rm -rf /*",
