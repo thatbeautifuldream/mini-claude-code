@@ -15,13 +15,27 @@ import { marked } from "marked";
 import TerminalRenderer from "marked-terminal";
 import pc from "picocolors";
 import { createAgent } from "./agent.js";
-import { MODEL_ID } from "./cst/constants.js";
+import { MAX_HISTORY_CHARS, MODEL_ID } from "./cst/constants.js";
 import type { TAgentKit } from "./cst/types.js";
 import { formatToolEvent } from "./ui.js";
 
 marked.setOptions({
   renderer: new TerminalRenderer() as any,
 });
+
+function trimMessages(messages: ModelMessage[]): ModelMessage[] {
+  let total = 0;
+  const kept: ModelMessage[] = [];
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const size = JSON.stringify(messages[i]).length;
+    if (total + size > MAX_HISTORY_CHARS && kept.length > 0) break;
+    kept.unshift(messages[i]);
+    total += size;
+  }
+  // Drop leading orphaned tool messages
+  while (kept.length > 0 && kept[0].role === "tool") kept.shift();
+  return kept;
+}
 
 async function main() {
   console.log();
@@ -31,7 +45,7 @@ async function main() {
   log.info(`Working directory: ${pc.cyan(cwd)}`);
 
   const shouldSeed = await confirm({
-    message: "Seed the sandbox with files from the current directory?",
+    message: "Index the workspace directory? (agent reads files on demand)",
     initialValue: true,
   });
 
@@ -92,15 +106,18 @@ async function main() {
 
 async function runTurn(kit: TAgentKit, userMsg: string) {
   kit.messages.push({ role: "user", content: userMsg });
+  const trimmed = trimMessages(kit.messages);
 
   const sp = spinner();
   sp.start(pc.dim("Thinking…"));
 
   const toolEvents: string[] = [];
   const textParts: string[] = [];
+  let totalIn = 0,
+    totalOut = 0;
 
   const result = await kit.agent.stream({
-    messages: kit.messages,
+    messages: trimmed,
     onStepFinish(stepResult: StepResult<ToolSet>) {
       if (stepResult.toolCalls.length > 0) {
         sp.message(pc.dim(`Running ${stepResult.toolCalls[0].toolName}…`));
@@ -108,6 +125,8 @@ async function runTurn(kit: TAgentKit, userMsg: string) {
       for (const tr of stepResult.toolResults) {
         toolEvents.push(formatToolEvent(tr));
       }
+      totalIn += stepResult.usage?.inputTokens ?? 0;
+      totalOut += stepResult.usage?.outputTokens ?? 0;
     },
   });
 
@@ -119,7 +138,7 @@ async function runTurn(kit: TAgentKit, userMsg: string) {
     }
   }
 
-  sp.stop(pc.dim("Done"));
+  sp.stop(pc.dim(`Done  ${pc.gray(`[${totalIn}↑ ${totalOut}↓ tokens]`)}`));
 
   const response = await result.response;
   for (const msg of response.messages as ModelMessage[]) {

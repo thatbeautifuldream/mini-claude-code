@@ -1,7 +1,9 @@
+import { readdirSync, statSync } from "fs";
+import { join, relative } from "path";
 import { groq } from "@ai-sdk/groq";
 import { ToolLoopAgent, stepCountIs, type ToolSet } from "ai";
 import { createBashTool, type BashToolkit } from "bash-tool";
-import { DANGEROUS_COMMANDS, INCLUDE_EXTENSIONS, INSTRUCTIONS, MAX_FILES_TO_UPLOAD, MODEL_ID } from "./cst/constants.js";
+import { DANGEROUS_COMMANDS, INSTRUCTIONS, MODEL_ID } from "./cst/constants.js";
 import type {
   TAfterBashCallInput,
   TAfterBashCallOutput,
@@ -10,23 +12,66 @@ import type {
   TBeforeBashCallOutput,
 } from "./cst/types.js";
 
-function buildIncludePattern(): string {
-  const extPattern = `**/*.{${INCLUDE_EXTENSIONS.join(",")}}`;
-  return extPattern;
+function buildDirectoryListing(dir: string, maxLines = 150): string {
+  const lines: string[] = [`# Workspace: ${dir}`, ""];
+  let count = 0;
+
+  function walk(current: string) {
+    if (count >= maxLines) return;
+    let entries: string[];
+    try {
+      entries = readdirSync(current);
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      if (count >= maxLines) break;
+      if (
+        ["node_modules", ".git", "dist", "build", ".next", "coverage"].includes(
+          entry,
+        )
+      )
+        continue;
+      const full = join(current, entry);
+      const rel = relative(dir, full);
+      let stat: ReturnType<typeof statSync>;
+      try {
+        stat = statSync(full);
+      } catch {
+        continue;
+      }
+      if (stat.isDirectory()) {
+        lines.push(`${rel}/`);
+        walk(full);
+      } else {
+        lines.push(rel);
+        count++;
+      }
+    }
+  }
+
+  walk(dir);
+  if (count >= maxLines) lines.push(`... (truncated at ${maxLines} files)`);
+  lines.push(
+    "",
+    "Use readFile or bash cat to read any file. Use bash ls/find to explore further.",
+  );
+  return lines.join("\n");
 }
 
 export async function createAgent(seedDir: string | null): Promise<TAgentKit> {
   const bashToolkit: BashToolkit = await createBashTool({
     destination: "/workspace",
-    maxOutputLength: 50000,
-    maxFiles: MAX_FILES_TO_UPLOAD,
-    uploadDirectory: seedDir ? { source: seedDir, include: buildIncludePattern() } : undefined,
+    maxOutputLength: 4000,
+    files: seedDir
+      ? { "WORKSPACE_INFO.txt": buildDirectoryListing(seedDir) }
+      : undefined,
     extraInstructions: `\
 - Working directory is /workspace
-- All file operations are relative to /workspace
-- When searching, prefer grep -r or rg if available
-- Commands have a maximum output length of 50,000 characters
-- Large outputs will be truncated with a message
+- WORKSPACE_INFO.txt contains the file index; use it to navigate
+- Commands have a maximum output of 4,000 characters; large outputs are truncated
+- Use head -n 50 / tail -n 50 instead of cat for large files
+- Use grep to search for specific content rather than reading whole files
 - Use --color=never with grep for cleaner output
 `,
     onBeforeBashCall: ({
