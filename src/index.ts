@@ -16,7 +16,7 @@ import { marked } from "marked";
 import TerminalRenderer from "marked-terminal";
 import pc from "picocolors";
 import { createAgent } from "./agent.js";
-import { MAX_HISTORY_CHARS, MODEL_ID } from "./cst/constants.js";
+import { MAX_HISTORY_CHARS } from "./cst/constants.js";
 import type { TAgentKit } from "./cst/types.js";
 import { formatToolEvent } from "./ui.js";
 
@@ -86,7 +86,7 @@ function trimMessages(messages: ModelMessage[]): ModelMessage[] {
 
 async function main() {
   console.log();
-  intro(pc.bgCyan(pc.black(" mini-claude-code ")) + pc.dim(`  ${MODEL_ID}`));
+  intro(pc.bgCyan(pc.black(" mini-claude-code ")));
 
   const cwd = process.cwd();
   log.info(`Working directory: ${pc.cyan(cwd)}`);
@@ -95,7 +95,8 @@ async function main() {
   if (gitCtx) log.info(gitCtx);
 
   const shouldSeed = await confirm({
-    message: "Upload workspace files to sandbox? (recommended — lets agent read files directly)",
+    message:
+      "Upload workspace files to sandbox? (recommended — lets agent read files directly)",
     initialValue: true,
   });
 
@@ -120,7 +121,7 @@ async function main() {
   note(
     [
       `${pc.bold("Tools:")}   bash · readFile · writeFile`,
-      `${pc.bold("Model:")}   ${pc.cyan(agentKit.modelId)} ${pc.dim("(Groq)")}`,
+      `${pc.bold("Model:")}   ${pc.cyan(agentKit.modelId)} ${pc.dim("(OpenAI)")}`,
       `${pc.bold("Commands:")} /help · /clear · /git · /exit`,
     ].join("\n"),
     "Ready",
@@ -214,16 +215,18 @@ async function runTurn(kit: TAgentKit, userMsg: string) {
     }
   }
 
-  sp.stop(
-    pc.dim(
-      `Done  ${pc.gray(`[${stepCount} steps · ${totalIn}↑ ${totalOut}↓ tokens]`)}`,
-    ),
-  );
-
   const response = await result.response;
   for (const msg of response.messages as ModelMessage[]) {
     kit.messages.push(msg);
   }
+
+  const usage = await result.usage;
+
+  sp.stop(
+    pc.dim(
+      `Done  ${pc.gray(`[${stepCount} steps · ${usage?.inputTokens ?? totalIn}↑ ${usage?.outputTokens ?? totalOut}↓ tokens]`)}`,
+    ),
+  );
 
   for (const ev of toolEvents) log.step(ev);
 
@@ -232,6 +235,11 @@ async function runTurn(kit: TAgentKit, userMsg: string) {
     const renderedMarkdown = await Promise.resolve(marked(fullText));
     log.message(renderedMarkdown as string);
   }
+
+  console.log();
+  log.step(
+    `${pc.bold("Tokens:")} ${usage?.inputTokens ?? totalIn} input, ${usage?.outputTokens ?? totalOut} output`,
+  );
 }
 
 main().catch((err) => {

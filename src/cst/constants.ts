@@ -1,5 +1,3 @@
-export const MODEL_ID = "openai/gpt-oss-120b";
-
 export const MAX_HISTORY_CHARS = 16_000;
 
 // Glob passed to uploadDirectory — covers source files, skips build artifacts

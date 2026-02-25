@@ -1,12 +1,11 @@
 import { readdirSync, statSync } from "fs";
 import { join, relative } from "path";
-import { groq } from "@ai-sdk/groq";
+import { openai } from "@ai-sdk/openai";
 import { ToolLoopAgent, stepCountIs, type ToolSet } from "ai";
 import { createBashTool, type BashToolkit } from "bash-tool";
 import {
   DANGEROUS_COMMANDS,
   INSTRUCTIONS,
-  MODEL_ID,
   UPLOAD_INCLUDE_PATTERN,
   SKIP_DIRS,
 } from "./cst/constants.js";
@@ -116,11 +115,11 @@ export async function createAgent(seedDir: string | null): Promise<TAgentKit> {
   });
 
   const agent = new ToolLoopAgent<never, ToolSet>({
-    model: groq(MODEL_ID),
+    model: openai("gpt-4o"),
     tools: bashToolkit.tools as unknown as ToolSet,
     instructions: INSTRUCTIONS,
     stopWhen: stepCountIs(50),
   });
 
-  return { agent, modelId: MODEL_ID, messages: [] };
+  return { agent, modelId: "gpt-4o", messages: [] };
 }
