@@ -3,7 +3,13 @@ import { join, relative } from "path";
 import { groq } from "@ai-sdk/groq";
 import { ToolLoopAgent, stepCountIs, type ToolSet } from "ai";
 import { createBashTool, type BashToolkit } from "bash-tool";
-import { DANGEROUS_COMMANDS, INSTRUCTIONS, MODEL_ID } from "./cst/constants.js";
+import {
+  DANGEROUS_COMMANDS,
+  INSTRUCTIONS,
+  MODEL_ID,
+  UPLOAD_INCLUDE_PATTERN,
+  SKIP_DIRS,
+} from "./cst/constants.js";
 import type {
   TAfterBashCallInput,
   TAfterBashCallOutput,
@@ -12,26 +18,21 @@ import type {
   TBeforeBashCallOutput,
 } from "./cst/types.js";
 
-function buildDirectoryListing(dir: string, maxLines = 150): string {
+function buildDirectoryListing(dir: string, maxLines = 300): string {
   const lines: string[] = [`# Workspace: ${dir}`, ""];
   let count = 0;
 
-  function walk(current: string) {
-    if (count >= maxLines) return;
+  function walk(current: string, depth = 0) {
+    if (count >= maxLines || depth > 8) return;
     let entries: string[];
     try {
-      entries = readdirSync(current);
+      entries = readdirSync(current).sort();
     } catch {
       return;
     }
     for (const entry of entries) {
       if (count >= maxLines) break;
-      if (
-        ["node_modules", ".git", "dist", "build", ".next", "coverage"].includes(
-          entry,
-        )
-      )
-        continue;
+      if (SKIP_DIRS.has(entry)) continue;
       const full = join(current, entry);
       const rel = relative(dir, full);
       let stat: ReturnType<typeof statSync>;
@@ -42,7 +43,7 @@ function buildDirectoryListing(dir: string, maxLines = 150): string {
       }
       if (stat.isDirectory()) {
         lines.push(`${rel}/`);
-        walk(full);
+        walk(full, depth + 1);
       } else {
         lines.push(rel);
         count++;
@@ -54,7 +55,7 @@ function buildDirectoryListing(dir: string, maxLines = 150): string {
   if (count >= maxLines) lines.push(`... (truncated at ${maxLines} files)`);
   lines.push(
     "",
-    "Use readFile or bash cat to read any file. Use bash ls/find to explore further.",
+    "All files above are available in /workspace/. Use readFile <path> to read any of them.",
   );
   return lines.join("\n");
 }
@@ -63,16 +64,24 @@ export async function createAgent(seedDir: string | null): Promise<TAgentKit> {
   const bashToolkit: BashToolkit = await createBashTool({
     destination: "/workspace",
     maxOutputLength: 4000,
-    files: seedDir
-      ? { "WORKSPACE_INFO.txt": buildDirectoryListing(seedDir) }
-      : undefined,
+    // Upload actual source files so the agent can readFile them directly.
+    // When no seedDir, only the WORKSPACE_INFO placeholder is written (via files below).
+    ...(seedDir
+      ? {
+          uploadDirectory: {
+            source: seedDir,
+            include: UPLOAD_INCLUDE_PATTERN,
+          },
+          files: {
+            "WORKSPACE_INFO.txt": buildDirectoryListing(seedDir),
+          },
+        }
+      : {}),
     extraInstructions: `\
-- Working directory is /workspace
-- WORKSPACE_INFO.txt contains the file index; use it to navigate
-- Commands have a maximum output of 4,000 characters; large outputs are truncated
-- Use head -n 50 / tail -n 50 instead of cat for large files
-- Use grep to search for specific content rather than reading whole files
-- Use --color=never with grep for cleaner output
+- All files are pre-loaded in /workspace/ — use readFile for direct access (faster than bash cat)
+- WORKSPACE_INFO.txt at /workspace/WORKSPACE_INFO.txt is your file index
+- Commands are capped at 4,000 chars output; use head/tail/grep to stay under the limit
+- Use grep -rn --color=never for searching; use --include="*.ext" to narrow scope
 `,
     onBeforeBashCall: ({
       command,
@@ -82,7 +91,7 @@ export async function createAgent(seedDir: string | null): Promise<TAgentKit> {
         if (trimmedCmd.includes(dangerous)) {
           console.warn(`⚠️  Blocked dangerous command: ${command}`);
           return {
-            command: `echo "Error: Potentially dangerous command blocked. Command: ${command}"`,
+            command: `echo "Error: Potentially dangerous command blocked: ${dangerous}"`,
           };
         }
       }
@@ -98,7 +107,7 @@ export async function createAgent(seedDir: string | null): Promise<TAgentKit> {
         );
         if (errorMsg) {
           console.warn(
-            `   Error output: ${errorMsg.slice(0, 200)}${errorMsg.length > 200 ? "..." : ""}`,
+            `   ${errorMsg.slice(0, 200)}${errorMsg.length > 200 ? "…" : ""}`,
           );
         }
       }

@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { execSync } from "child_process";
 import {
   cancel,
   confirm,
@@ -23,6 +24,50 @@ marked.setOptions({
   renderer: new TerminalRenderer() as any,
 });
 
+// ── Slash commands ────────────────────────────────────────────────────────────
+
+const HELP_TEXT = [
+  `${pc.bold("Slash commands:")}`,
+  `  ${pc.cyan("/help")}   Show this message`,
+  `  ${pc.cyan("/clear")}  Clear conversation history (keeps sandbox files)`,
+  `  ${pc.cyan("/git")}    Show git status + last 5 commits`,
+  `  ${pc.cyan("/exit")}   Quit`,
+  "",
+  `${pc.bold("Tips:")}`,
+  `  • The agent can read, write, and run any code in the sandbox`,
+  `  • Use ${pc.cyan("/clear")} when the context gets stale`,
+  `  • Files are uploaded to /workspace at startup`,
+].join("\n");
+
+function tryGitContext(cwd: string): string | null {
+  try {
+    const status = execSync("git status --short", {
+      cwd,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+    const log = execSync("git log --oneline -5", {
+      cwd,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+    const branch = execSync("git rev-parse --abbrev-ref HEAD", {
+      cwd,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+    return [
+      `Branch: ${pc.cyan(branch)}`,
+      status ? `\nChanged files:\n${status}` : "\nWorking tree clean",
+      log ? `\nRecent commits:\n${log}` : "",
+    ].join("");
+  } catch {
+    return null;
+  }
+}
+
+// ── Message history ───────────────────────────────────────────────────────────
+
 function trimMessages(messages: ModelMessage[]): ModelMessage[] {
   let total = 0;
   const kept: ModelMessage[] = [];
@@ -37,6 +82,8 @@ function trimMessages(messages: ModelMessage[]): ModelMessage[] {
   return kept;
 }
 
+// ── Main ──────────────────────────────────────────────────────────────────────
+
 async function main() {
   console.log();
   intro(pc.bgCyan(pc.black(" mini-claude-code ")) + pc.dim(`  ${MODEL_ID}`));
@@ -44,8 +91,11 @@ async function main() {
   const cwd = process.cwd();
   log.info(`Working directory: ${pc.cyan(cwd)}`);
 
+  const gitCtx = tryGitContext(cwd);
+  if (gitCtx) log.info(gitCtx);
+
   const shouldSeed = await confirm({
-    message: "Index the workspace directory? (agent reads files on demand)",
+    message: "Upload workspace files to sandbox? (recommended — lets agent read files directly)",
     initialValue: true,
   });
 
@@ -55,7 +105,7 @@ async function main() {
   }
 
   const s = spinner();
-  s.start("Initialising bash sandbox…");
+  s.start("Initialising sandbox and uploading files…");
 
   let agentKit: TAgentKit;
   try {
@@ -69,18 +119,20 @@ async function main() {
 
   note(
     [
-      `${pc.bold("Tools:")}  bash · readFile · writeFile`,
-      `${pc.bold("Model:")}  ${pc.cyan(agentKit.modelId)} ${pc.dim("(Groq)")}`,
-      `${pc.bold("Type")} ${pc.cyan("exit")} to quit, ${pc.cyan("Ctrl+C")} to abort.`,
+      `${pc.bold("Tools:")}   bash · readFile · writeFile`,
+      `${pc.bold("Model:")}   ${pc.cyan(agentKit.modelId)} ${pc.dim("(Groq)")}`,
+      `${pc.bold("Commands:")} /help · /clear · /git · /exit`,
     ].join("\n"),
     "Ready",
   );
+
+  // ── REPL ──────────────────────────────────────────────────────────────────
 
   while (true) {
     console.log();
     const input = await text({
       message: pc.green("You"),
-      placeholder: "Ask me to do something with your code…",
+      placeholder: "Ask me to do something with your code… (or /help)",
       validate(v) {
         if (!(v ?? "").trim()) return "Please enter a message.";
       },
@@ -92,7 +144,26 @@ async function main() {
     }
 
     const userMsg = String(input).trim();
-    if (userMsg === "exit" || userMsg === "quit") break;
+
+    // Slash commands
+    if (userMsg === "/exit" || userMsg === "exit" || userMsg === "quit") break;
+
+    if (userMsg === "/help") {
+      log.message(HELP_TEXT);
+      continue;
+    }
+
+    if (userMsg === "/clear") {
+      agentKit.messages = [];
+      log.success("Conversation history cleared.");
+      continue;
+    }
+
+    if (userMsg === "/git") {
+      const ctx = tryGitContext(cwd);
+      log.message(ctx ?? pc.dim("Not a git repository."));
+      continue;
+    }
 
     try {
       await runTurn(agentKit, userMsg);
@@ -103,6 +174,8 @@ async function main() {
 
   outro(pc.green("Goodbye!"));
 }
+
+// ── Run a single turn ─────────────────────────────────────────────────────────
 
 async function runTurn(kit: TAgentKit, userMsg: string) {
   kit.messages.push({ role: "user", content: userMsg });
@@ -115,12 +188,15 @@ async function runTurn(kit: TAgentKit, userMsg: string) {
   const textParts: string[] = [];
   let totalIn = 0,
     totalOut = 0;
+  let stepCount = 0;
 
   const result = await kit.agent.stream({
     messages: trimmed,
     onStepFinish(stepResult: StepResult<ToolSet>) {
+      stepCount++;
       if (stepResult.toolCalls.length > 0) {
-        sp.message(pc.dim(`Running ${stepResult.toolCalls[0].toolName}…`));
+        const toolName = stepResult.toolCalls[0].toolName;
+        sp.message(pc.dim(`Step ${stepCount}: ${toolName}…`));
       }
       for (const tr of stepResult.toolResults) {
         toolEvents.push(formatToolEvent(tr));
@@ -138,7 +214,11 @@ async function runTurn(kit: TAgentKit, userMsg: string) {
     }
   }
 
-  sp.stop(pc.dim(`Done  ${pc.gray(`[${totalIn}↑ ${totalOut}↓ tokens]`)}`));
+  sp.stop(
+    pc.dim(
+      `Done  ${pc.gray(`[${stepCount} steps · ${totalIn}↑ ${totalOut}↓ tokens]`)}`,
+    ),
+  );
 
   const response = await result.response;
   for (const msg of response.messages as ModelMessage[]) {
