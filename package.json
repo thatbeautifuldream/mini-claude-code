@@ -8,7 +8,9 @@
   },
   "scripts": {
     "dev": "bun run src/index.ts",
-    "start": "bun run src/index.ts"
+    "start": "bun run src/index.ts",
+    "build": "bun build --compile --minify --sourcemap ./src/index.ts --outfile ./dist/mcc",
+    "link": "sudo ln -sf $(pwd)/dist/mcc /usr/local/bin/mcc"
   },
   "dependencies": {
     "@ai-sdk/groq": "^3.0.24",
