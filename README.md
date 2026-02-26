@@ -40,6 +40,10 @@ bun run dev
 
 ---
 
+https://github.com/user-attachments/assets/afc4d916-af63-481f-9efd-7bd1518c1ebe
+
+---
+
 ## How It Works
 
 Uses `ToolLoopAgent` from `ai` SDK:
