@@ -4,6 +4,32 @@ An AI coding assistant that works directly with your files.
 
 ---
 
+## Quick Start
+
+Run mini-claude-code instantly without cloning or installing anything:
+
+```bash
+# Bun
+bunx github:thatbeautifuldream/mini-claude-code
+
+# npm
+npx github:thatbeautifuldream/mini-claude-code
+
+# pnpm
+pnpm dlx github:thatbeautifuldream/mini-claude-code
+
+# yarn
+yarn dlx github:thatbeautifuldream/mini-claude-code
+```
+
+Set your OpenAI API key before starting:
+
+```bash
+export OPENAI_API_KEY=your-key-here
+```
+
+---
+
 ## What It Does
 
 Imagine having a conversation with someone who can read your code, edit your files, and run commands. That's mini-claude-code.
