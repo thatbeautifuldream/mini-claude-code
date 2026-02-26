@@ -1,148 +1,273 @@
 # mini-claude-code
 
-A coding agent that can run commands, read files, and write files.
+An AI coding assistant that works directly with your files.
+
+---
 
 ## What It Does
 
-You chat with an AI agent that can:
+Imagine having a conversation with someone who can read your code, edit your files, and run commands. That's mini-claude-code.
 
-- Run bash commands (ls, grep, git, etc.)
-- Read files from your project
-- Create or edit files
+You simply ask it to do something with your code, and it figures out what needs to be done. It reads the relevant files, makes the changes you want, and shows you the results.
 
-The agent thinks step-by-step, calling tools until it has enough information to answer your question.
+It's like having an experienced developer who understands code, knows bash commands, and can help you with anything in your project.
 
-## How to Use
-
-```bash
-bun install
-export OPENAI_API_KEY=gsk_...
-bun run dev
-```
-
-## Example
-
-```bash
-mini-claude-code on  main [!] is 📦 v0.0.1 via 🥟 v1.2.18 took 8m35s
-❯ bun run dev
-$ bun run src/index.ts
-
-┌   mini-claude-code
-│
-●  Working directory: /Users/milind/Downloads/mini-claude-code
-│
-●  Branch: main
-│  Changed files:
-│  M bun.lock
-│   M package.json
-│   M src/agent.ts
-│   M src/cst/constants.ts
-│   M src/index.ts
-│  Recent commits:
-│  295825e feat: enhance agent functionality with git context commands and improved help text
-│  bc3d435 feat: optimisations for free tier
-│  000e848 feat: enhance agent configuration with dynamic include pattern and constants
-│  1296437 feat: update build and symlink script
-│  14340e5 feat: init mini cc
-│
-◇  Upload workspace files to sandbox? (recommended — lets agent read files directly)
-│  Yes
-│
-◇  Sandbox ready ✓
-│
-◇  Ready ───────────────────────────────────╮
-│                                           │
-│  Tools:   bash · readFile · writeFile     │
-│  Model:   gpt-4o (OpenAI)                 │
-│  Commands: /help · /clear · /git · /exit  │
-│                                           │
-├───────────────────────────────────────────╯
-
-│
-◇  You
-│  What is this repository about?
-│
-◇  Done  [2 steps · 1428↑ 158↓ tokens]
-│
-◇  readFile README.md
-│
-│  This repository is about a coding agent called mini-claude-code. It provides functionality to:
-│
-│      * Run bash commands.
-│      * Read and write files in the project.
-│      * Perform tasks step-by-step using AI to interact with files and commands.
-│
-│  ### Tech Stack
-│
-│      * **AI SDK** for handling agent loops.
-│      * **Groq** for AI inference.
-│      * **bash-tool** for executing bash commands and file operations.
-│      * **@clack/prompts** for a CLI interface.
-│      * **Bun** as the runtime.
-│
-│  ### Usage
-│
-│  You can interact with the agent using bash commands, installing dependencies, and running a development server with Bun. It's designed to execute tasks based on user requests, making decisions on which tools to use as it goes through the task.
-│
-│
-
-│
-◇  Tokens: 1428 input, 158 output
-
-│
-◇  You
-│  What are all the files in this repository?
-│
-◇  Done  [2 steps · 1726↑ 103↓ tokens]
-│
-◇  readFile WORKSPACE_INFO.txt
-│
-│  Here are the files in the repository:
-│
-│      * **.env.example**
-│      * **.env.local**
-│      * **.gitignore**
-│      * **README.md**
-│      * **bun.lock**
-│      * **package.json**
-│      * **tsconfig.json**
-│
-│  ### Source Files in src/:
-│
-│      * **agent.ts**
-│      * **index.ts**
-│      * **ui.ts**
-│
-│  ### CST Directory
-│
-│      * **cst/constants.ts**
-│      * **cst/types.ts**
-│
-│  You can read any of these files for more details.
-│
-│
-
-│
-◇  Tokens: 1726 input, 103 output
-```
-
-## Tech Stack
-
-- **[AI SDK](https://ai-sdk.dev)** - ToolLoopAgent handles the agent loop
-- **[bash-tool](https://www.npmjs.com/package/bash-tool)** - Provides bash, readFile, writeFile tools
-- **[@clack/prompts](https://www.npmjs.com/package/@clack/prompts)** - Beautiful CLI interface
-- **[Bun](https://bun.sh)** - Runtime
+---
 
 ## How It Works
 
-1. Agent receives your request
-2. Agent decides which tools to use
-3. Tools execute and return results
-4. Agent sees results and decides next action
-5. Repeat until agent responds to you
+1. **Start it** - Run one command in your project folder
+2. **Ask questions** - Tell it what you want to do in plain English
+3. **Watch it work** - See each step as it reads files and makes changes
+4. **Done** - Your files are updated with the changes you requested
+
+That's it. No setup, no configuration, no learning curve.
+
+---
+
+## What It Can Do
+
+### Read Files
+- Look at any file in your project
+- Understand the code structure
+- Find specific functions or patterns
+
+### Edit Files
+- Create new files
+- Update existing files
+- Make targeted changes
+
+### Run Commands
+- Execute bash commands like `ls`, `grep`, `git`
+- Run tests and builds
+- Install dependencies
+
+### Smart Features
+- **Custom commands** for common tasks:
+  - `explain <file>` - Read and analyze a file
+  - `lint [path]` - Get code quality suggestions
+  - `deps` - Show project dependencies
+- **Network access** - Can fetch documentation from npm, PyPI, GitHub
+- **Git integration** - Shows your branch, changed files, recent commits
+- **Safety** - Blocks dangerous commands automatically
+
+---
+
+## Getting Started
+
+```bash
+# Install dependencies
+bun install
+
+# Set your OpenAI API key
+export OPENAI_API_KEY=your-key-here
+
+# Start the agent
+bun run dev
+```
+
+That's all you need. The agent starts in your current directory and is ready to help.
+
+---
+
+## Example Session
+
+Here's what it looks like when you use it:
+
+```
+┌   mini-claude-code
+│
+●  Working directory: /Users/you/my-project
+│
+●  Branch: main
+│  Recent commits:
+│  abc1234 fix: update readme
+│  def5678 feat: add new feature
+│
+◇  Agent ready ✓
+│
+◇  Ready ─────────────────────────────────────────────────╮
+│                                                         │
+│  Tools:   bash · readFile · writeFile                   │
+│  Custom:  explain · lint · deps                         │
+│  Network: curl (npm, PyPI, GitHub)                      │
+│  Model:   gpt-4o (OpenAI)                               │
+│  Commands: /help · /clear · /git · /exit                │
+│                                                         │
+├─────────────────────────────────────────────────────────╯
+
+◇  You
+│  Add a function to calculate the sum of an array in utils.ts
+
+◑  Thinking…
+◇  Done  [3 steps · 1243↑ 89↓ tokens]
+
+◇  readFile utils.ts
+◇  writeFile utils.ts (2341 bytes)
+
+I've added a new function called `sumArray` to utils.ts that calculates the sum of all numbers in an array. Here's what it does:
+
+```typescript
+export function sumArray(arr: number[]): number {
+  return arr.reduce((sum, num) => sum + num, 0);
+}
+```
+
+You can use it like: `sumArray([1, 2, 3, 4, 5])` which returns `15`.
+
+◇  Tokens: 1243 input, 89 output
+```
+
+See how simple it is? Just ask, and it does the work.
+
+---
+
+## Built-in Commands
+
+While using the agent, you can type these special commands:
+
+| Command | What It Does |
+|---------|--------------|
+| `/help` | Show all available commands |
+| `/clear` | Clear conversation history |
+| `/git` | Show git status and recent commits |
+| `/exit` | Quit the agent |
+
+### Custom Tools
+
+These are commands the agent itself can use (you can ask it to use them):
+
+| Command | Description |
+|---------|-------------|
+| `explain <file>` | Reads and displays a file with context |
+| `lint [path]` | Suggests code quality commands for your project |
+| `deps` | Shows your project's package dependencies |
+
+---
+
+## Philosophy
+
+### Simplicity First
+- No configuration files needed
+- No complex setup steps
+- Works out of the box
+- Just run and ask
+
+### Direct Access
+- Reads and writes your actual files directly
+- No sandboxing or abstraction layers
+- What you see is what gets changed
+- Changes are permanent (just like editing files yourself)
+
+### Safety Built-In
+- Automatically blocks dangerous commands
+- Warns you when something fails
+- Shows you what it's doing step by step
+- You can stop it anytime
+
+### Smart Assistance
+- Understands code before changing it
+- Plans its approach before acting
+- Reads existing patterns to match your style
+- Verifies changes after making them
+
+---
+
+## Under the Hood
+
+**Why it's fast:**
+- Uses your actual filesystem (no copying or uploading)
+- Reads files directly when needed
+- Runs commands on your real system
+- No waiting for transfers or syncs
+
+**How it thinks:**
+1. Understands your request
+2. Decides which tools to use
+3. Executes tools and sees results
+4. Uses results to decide next step
+5. Repeats until your task is done
+
+**What it protects:**
+- Commands that delete your entire project (`rm -rf /`)
+- Commands that could wipe your disk
+- Forced git operations
+- Any other dangerous actions
+
+---
+
+## What Makes It Different
+
+**From traditional IDE assistants:**
+- You talk to it like a person, not click through menus
+- It can run commands and see real output
+- It understands your whole project context
+- Works with any project, any language
+
+**From command-line tools:**
+- You don't need to remember complex commands
+- It figures out what to do automatically
+- It reads and edits files for you
+- You just describe what you want
+
+**From other AI coding assistants:**
+- Direct filesystem access (no sandbox)
+- Works with your actual files
+- No file upload/download steps
+- Changes are immediate and permanent
+
+---
 
 ## Safety
 
-- Dangerous commands are blocked (rm -rf /, etc.)
-- Commands run in sandboxed environment
-- Command output is limited to prevent memory issues
+Your files are safe with these protections:
+
+✅ **Dangerous commands blocked** - Can't delete your entire project or disk
+✅ **Destructive git commands blocked** - No force pushes or hard resets
+✅ **Transparent operations** - See every step it takes
+✅ **Clear feedback** - Know what succeeded and what failed
+✅ **Stop anytime** - Type `/exit` to quit safely
+
+---
+
+## Tips for Best Results
+
+**Be specific:**
+- Instead of "Fix the code", say "Add error handling to the login function"
+- Instead of "Update documentation", say "Add an example to the API docs"
+
+**Let it explore first:**
+- It will read relevant files before making changes
+- This ensures it understands the context
+- Results in better, more accurate changes
+
+**Use it for repetitive tasks:**
+- Adding similar functions across multiple files
+- Updating imports after refactoring
+- Creating boilerplate code
+
+**Ask for explanations:**
+- "Explain how this function works"
+- "What dependencies does this project need?"
+- "How should I test this feature?"
+
+---
+
+## What It Uses
+
+- **AI Model**: GPT-4o for understanding and generating code
+- **Commands**: Runs bash commands directly on your system
+- **Files**: Reads and writes your actual files
+- **Network**: Can fetch docs from npm, PyPI, GitHub (when needed)
+
+---
+
+## Author
+
+milind
+
+---
+
+## License
+
+MIT

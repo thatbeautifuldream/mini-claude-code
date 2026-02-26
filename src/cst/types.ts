@@ -1,5 +1,6 @@
 import type { CommandResult } from "bash-tool";
 import type { ModelMessage, ToolLoopAgent, ToolSet, TypedToolResult } from "ai";
+import type { CommandContext } from "just-bash";
 
 export type TAgentKit = {
   agent: ToolLoopAgent<never, any>;
@@ -48,3 +49,9 @@ export type TAfterBashCallOutput = {
 };
 
 export type TToolResult = TypedToolResult<ToolSet>;
+
+export type TBashCommand = (args: string[], ctx: CommandContext) => Promise<{
+  stdout: string;
+  stderr: string;
+  exitCode: number;
+}>;

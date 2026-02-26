@@ -2,7 +2,6 @@
 import { execSync } from "child_process";
 import {
   cancel,
-  confirm,
   intro,
   isCancel,
   log,
@@ -29,14 +28,20 @@ marked.setOptions({
 const HELP_TEXT = [
   `${pc.bold("Slash commands:")}`,
   `  ${pc.cyan("/help")}   Show this message`,
-  `  ${pc.cyan("/clear")}  Clear conversation history (keeps sandbox files)`,
+  `  ${pc.cyan("/clear")}  Clear conversation history`,
   `  ${pc.cyan("/git")}    Show git status + last 5 commits`,
   `  ${pc.cyan("/exit")}   Quit`,
   "",
-  `${pc.bold("Tips:")}`,
-  `  • The agent can read, write, and run any code in the sandbox`,
-  `  • Use ${pc.cyan("/clear")} when the context gets stale`,
-  `  • Files are uploaded to /workspace at startup`,
+  `${pc.bold("Custom commands:")}`,
+  `  ${pc.cyan("explain <file>")}  Read and display a file for analysis`,
+  `  ${pc.cyan("lint [path]")}    Get linting suggestions for your project`,
+  `  ${pc.cyan("deps")}            Show package dependencies`,
+  "",
+  `${pc.bold("Network access:")}`,
+  `  curl is available for npm, PyPI, GitHub`,
+  "",
+  `${pc.bold("Filesystem:")}`,
+  `  Direct read/write access to your filesystem (all changes are permanent)`,
 ].join("\n");
 
 function tryGitContext(cwd: string): string | null {
@@ -94,26 +99,15 @@ async function main() {
   const gitCtx = tryGitContext(cwd);
   if (gitCtx) log.info(gitCtx);
 
-  const shouldSeed = await confirm({
-    message:
-      "Upload workspace files to sandbox? (recommended — lets agent read files directly)",
-    initialValue: true,
-  });
-
-  if (isCancel(shouldSeed)) {
-    cancel("Cancelled.");
-    process.exit(0);
-  }
-
   const s = spinner();
-  s.start("Initialising sandbox and uploading files…");
+  s.start("Initializing agent with direct filesystem access…");
 
   let agentKit: TAgentKit;
   try {
-    agentKit = await createAgent(shouldSeed ? cwd : null);
-    s.stop("Sandbox ready ✓");
+    agentKit = await createAgent(cwd);
+    s.stop("Agent ready ✓");
   } catch (err) {
-    s.stop(pc.red("Failed to start sandbox"));
+    s.stop(pc.red("Failed to start agent"));
     log.error(String(err));
     process.exit(1);
   }
@@ -121,6 +115,8 @@ async function main() {
   note(
     [
       `${pc.bold("Tools:")}   bash · readFile · writeFile`,
+      `${pc.bold("Custom:")}  explain · lint · deps`,
+      `${pc.bold("Network:")} curl (npm, PyPI, GitHub)`,
       `${pc.bold("Model:")}   ${pc.cyan(agentKit.modelId)} ${pc.dim("(OpenAI)")}`,
       `${pc.bold("Commands:")} /help · /clear · /git · /exit`,
     ].join("\n"),
